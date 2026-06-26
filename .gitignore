@@ -1,0 +1,28 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# Android
+*.jks.bak
+android/.gradle
+android/local.properties
+android/captures/
+**/GeneratedPluginRegistrant.java
+**/flutter_export_environment.sh
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+
+# NOTE: keystore/pace-release.jks is intentionally committed
+# (personal project, no Play Store concern)
+# key.properties is also committed (no secrets, fixed passwords)
