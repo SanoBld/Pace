@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/game.dart';
 import '../../models/player.dart';
@@ -110,7 +109,7 @@ class _SearchScreenState extends State<SearchScreen>
                 controller: _searchController,
                 hintText: l.t('search_hint_games'),
                 leading: const Icon(Icons.search_rounded),
-                autofocus: false,
+                autoFocus: false,
                 trailing: [
                   if (hasQuery)
                     IconButton(

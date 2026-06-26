@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
-import '../home/home_screen.dart';
-import '../leaderboard/leaderboard_screen.dart';
-import '../search/search_screen.dart';
-import '../profile/profile_screen.dart';
-import '../settings/settings_screen.dart';
+import 'home/home_screen.dart';
+import 'leaderboard/leaderboard_screen.dart';
+import 'search/search_screen.dart';
+import 'profile/profile_screen.dart';
+import 'settings/settings_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
