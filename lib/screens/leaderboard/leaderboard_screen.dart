@@ -100,7 +100,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         onRefresh: _loadPopular,
         child: CustomScrollView(
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
+              pinned: true,
               title: Text(
                 l.t('lb_title'),
                 style: const TextStyle(fontWeight: FontWeight.bold),

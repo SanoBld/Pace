@@ -132,7 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
+          SliverAppBar(
+            pinned: true,
             title: Text(
               l.t('profile_title'),
               style: const TextStyle(fontWeight: FontWeight.bold),

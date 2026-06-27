@@ -59,7 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
+          SliverAppBar(
+            pinned: true,
             title: Text(
               l.t('settings_title'),
               style: const TextStyle(fontWeight: FontWeight.bold),
