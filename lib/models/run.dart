@@ -61,28 +61,26 @@ class Run {
       }
     }
 
-    // Extract players
     List<Player> players = [];
-    final playersData = json['players'] as List<dynamic>?;
-    if (playersData != null) {
-      for (final p in playersData) {
+    final playersRaw = json['players'];
+    if (playersRaw is List) {
+      for (final p in playersRaw) {
         if (p['rel'] == 'guest') {
           players.add(Player.guest(p['name'] as String? ?? 'Guest'));
         } else if (p['rel'] == 'user') {
           players.add(Player(id: p['id'] as String, name: p['id'] as String));
         }
       }
-    }
-
-    // Embedded players (when embed=players)
-    final embeddedPlayers = json['players']?['data'] as List<dynamic>?;
-    if (embeddedPlayers != null) {
-      players = embeddedPlayers.map((p) {
-        if (p['rel'] == 'guest') {
-          return Player.guest(p['name'] as String? ?? 'Guest');
-        }
-        return Player.fromJson(p as Map<String, dynamic>);
-      }).toList();
+    } else if (playersRaw is Map) {
+      final embedded = playersRaw['data'] as List<dynamic>?;
+      if (embedded != null) {
+        players = embedded.map((p) {
+          if (p['rel'] == 'guest') {
+            return Player.guest(p['name'] as String? ?? 'Guest');
+          }
+          return Player.fromJson(p as Map<String, dynamic>);
+        }).toList();
+      }
     }
 
     // Game/category from embeds

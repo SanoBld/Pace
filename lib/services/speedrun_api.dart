@@ -60,7 +60,7 @@ class SpeedrunApiService {
   Future<List<Game>> getPopularGames({int max = 20}) async {
     final data = await _get('/games', params: {
       'max': max.toString(),
-      'orderby': 'similarity',
+      'orderby': 'released',
       'direction': 'desc',
     });
     final list = data['data'] as List<dynamic>;
