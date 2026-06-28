@@ -50,7 +50,6 @@ class SpeedrunApiService {
       'name': query,
       'max': max.toString(),
       'offset': offset.toString(),
-      'embed': 'platforms',
     });
     final list = data['data'] as List<dynamic>;
     return list.map((e) => Game.fromJson(e as Map<String, dynamic>)).toList();

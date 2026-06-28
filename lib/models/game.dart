@@ -34,10 +34,11 @@ class Game {
       weblink: json['weblink'] as String?,
       coverUrl: cover,
       released: json['released'] as int?,
-      platforms: (json['platforms'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      platforms: (() {
+        final p = json['platforms'];
+        if (p is List) return p.map((e) => e.toString()).toList();
+        return <String>[];
+      })(),
     );
   }
 }

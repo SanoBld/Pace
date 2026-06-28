@@ -12,14 +12,12 @@ import '../leaderboard/game_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final _api = SpeedrunApiService();
-
   List<Run>? _recentRuns;
   List<Game>? _popularGames;
   String? _runsError;
@@ -58,10 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openGame(Game game) {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)));
-  }
+  void _openGame(Game game) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),
+      );
 
   @override
   void dispose() {
@@ -104,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
 
-            // ── Favorites ─────────────────────────────────────────────────
+            // ── Favorites ────────────────────────────────────────────────
             if (favs.favorites.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: _SectionHeader(
@@ -121,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                     itemCount: favs.favorites.length,
                     itemBuilder: (_, i) => SizedBox(
-                      width: 88,
+                      width: 90,
                       child: Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: GameCard(
@@ -133,10 +131,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(child: Divider(height: 8, indent: 16, endIndent: 16)),
+              const SliverToBoxAdapter(
+                  child: Divider(height: 8, indent: 16, endIndent: 16)),
             ],
 
-            // ── Recent Runs ───────────────────────────────────────────────
+            // ── Recent Runs ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
                 icon: Icons.history_rounded,
@@ -145,7 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             if (_runsError != null)
               SliverToBoxAdapter(
-                child: _InlineError(message: _runsError!, onRetry: _loadRecentRuns),
+                child: _InlineError(
+                    message: _runsError!, onRetry: _loadRecentRuns),
               )
             else if (_loadingRuns)
               const SliverToBoxAdapter(child: ShimmerList(count: 5))
@@ -173,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-            // ── Trending Games ────────────────────────────────────────────
+            // ── Trending ─────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
                 icon: Icons.trending_up_rounded,
@@ -182,7 +182,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             if (_gamesError != null)
               SliverToBoxAdapter(
-                child: _InlineError(message: _gamesError!, onRetry: _loadPopularGames),
+                child: _InlineError(
+                    message: _gamesError!, onRetry: _loadPopularGames),
               )
             else if (_loadingGames)
               const SliverToBoxAdapter(child: ShimmerGrid(count: 6))
@@ -197,7 +198,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     childCount: _popularGames!.length,
                   ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 3 / 5,
                     crossAxisSpacing: 12,
@@ -218,12 +220,8 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color? iconColor;
-
-  const _SectionHeader({
-    required this.title,
-    required this.icon,
-    this.iconColor,
-  });
+  const _SectionHeader(
+      {required this.title, required this.icon, this.iconColor});
 
   @override
   Widget build(BuildContext context) {
@@ -233,14 +231,11 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon,
-              size: 18,
-              color: iconColor ?? theme.colorScheme.primary),
+              size: 18, color: iconColor ?? theme.colorScheme.primary),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
+          Text(title,
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -250,7 +245,6 @@ class _SectionHeader extends StatelessWidget {
 class _InlineError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-
   const _InlineError({required this.message, required this.onRetry});
 
   @override
@@ -272,16 +266,16 @@ class _InlineError extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onErrorContainer),
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             TextButton(
               onPressed: onRetry,
-              style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact),
+              style:
+                  TextButton.styleFrom(visualDensity: VisualDensity.compact),
               child: const Text('Retry'),
             ),
           ],

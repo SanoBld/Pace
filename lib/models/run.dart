@@ -64,7 +64,6 @@ class Run {
     List<Player> players = [];
     final playersRaw = json['players'];
     if (playersRaw is Map) {
-      // embed=players → {"data": [...]}
       final embedded = playersRaw['data'] as List<dynamic>?;
       if (embedded != null) {
         players = embedded.map((p) {
@@ -75,7 +74,6 @@ class Run {
         }).toList();
       }
     } else if (playersRaw is List) {
-      // no embed → [{"rel":"user","id":"..."}, ...]
       for (final p in playersRaw) {
         if (p['rel'] == 'guest') {
           players.add(Player.guest(p['name'] as String? ?? 'Guest'));

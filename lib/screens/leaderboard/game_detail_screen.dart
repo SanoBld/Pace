@@ -143,7 +143,7 @@ class _GameDetailScreenState extends State<GameDetailScreen>
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
-        SliverAppBar(
+          SliverAppBar(
             expandedHeight: game.coverUrl != null ? 240 : 120,
             pinned: true,
             foregroundColor: Colors.white,
@@ -160,7 +160,7 @@ class _GameDetailScreenState extends State<GameDetailScreen>
                   color: Colors.white,
                   shadows: [
                     Shadow(blurRadius: 12, color: Colors.black),
-                    Shadow(blurRadius: 4, color: Colors.black54),
+                    Shadow(blurRadius: 3, color: Colors.black54),
                   ],
                 ),
               ),
@@ -177,10 +177,7 @@ class _GameDetailScreenState extends State<GameDetailScreen>
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black54,
-                              ],
+                              colors: [Colors.transparent, Colors.black54],
                               stops: [0.4, 1.0],
                             ),
                           ),
@@ -217,12 +214,14 @@ class _GameDetailScreenState extends State<GameDetailScreen>
               ),
               if (game.weblink != null)
                 IconButton(
-                  icon: const Icon(Icons.open_in_browser_rounded, color: Colors.white),
+                  icon: const Icon(Icons.open_in_browser_rounded,
+                      color: Colors.white),
                   tooltip: l.t('open_link'),
                   onPressed: () async {
                     final uri = Uri.parse(game.weblink!);
                     if (await canLaunchUrl(uri)) {
-                      launchUrl(uri, mode: LaunchMode.externalApplication);
+                      launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
                     }
                   },
                 ),
