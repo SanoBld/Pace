@@ -28,12 +28,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userError;
   String? _pbsError;
 
+  // True = arrived from a player tap (no search bar needed)
+  bool get _isDirectProfile => widget.initialUser != null;
+
   @override
   void initState() {
     super.initState();
     if (widget.initialUser != null) {
       _user = widget.initialUser;
-      _controller.text = widget.initialUser!.name;
       _loadFull(widget.initialUser!.id);
     }
   }
@@ -42,65 +44,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
     FocusScope.of(context).unfocus();
-
     setState(() {
       _loadingUser = true;
       _userError = null;
       _pbs = null;
       _pbsError = null;
     });
-
     try {
       final user = await _api.getUser(query);
       if (mounted) {
-        setState(() {
-          _user = user;
-          _loadingUser = false;
-        });
+        setState(() { _user = user; _loadingUser = false; });
         _loadPbs(user.id);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _userError = e.toString();
-          _loadingUser = false;
-        });
-      }
+      if (mounted) setState(() { _userError = e.toString(); _loadingUser = false; });
     }
   }
 
   Future<void> _loadFull(String userId) async {
-    setState(() {
-      _loadingUser = true;
-      _userError = null;
-    });
+    setState(() { _loadingUser = true; _userError = null; });
     try {
       final user = await _api.getUser(userId);
       if (mounted) {
-        setState(() {
-          _user = user;
-          _loadingUser = false;
-        });
+        setState(() { _user = user; _loadingUser = false; });
         _loadPbs(userId);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _userError = e.toString();
-          _loadingUser = false;
-        });
-      }
+      if (mounted) setState(() { _userError = e.toString(); _loadingUser = false; });
     }
   }
 
   Future<void> _loadPbs(String userId) async {
-    setState(() {
-      _loadingPbs = true;
-      _pbsError = null;
-    });
+    setState(() { _loadingPbs = true; _pbsError = null; });
     try {
       final pbs = await _api.getUserPersonalBests(userId);
-      // Sort by place
       pbs.sort((a, b) => a.place.compareTo(b.place));
       if (mounted) setState(() => _pbs = pbs);
     } catch (e) {
@@ -112,9 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -135,62 +110,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SliverAppBar(
             pinned: true,
             title: Text(
-              l.t('profile_title'),
+              _isDirectProfile
+                  ? (_user?.name ?? l.t('profile_title'))
+                  : l.t('profile_title'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            // Loading indicator in AppBar when fetching profile
+            bottom: _loadingUser
+                ? const PreferredSize(
+                    preferredSize: Size.fromHeight(2),
+                    child: LinearProgressIndicator(),
+                  )
+                : null,
           ),
-          // ── Search bar ───────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        hintText: l.t('profile_hint'),
-                        prefixIcon: const Icon(Icons.person_search_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
+
+          // Search bar — only on the standalone Profile tab
+          if (!_isDirectProfile)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: l.t('profile_hint'),
+                          prefixIcon: const Icon(Icons.person_search_rounded),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          filled: true,
                         ),
-                        filled: true,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _search(),
                       ),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _search(),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton(
-                    onPressed: _loadingUser ? null : _search,
-                    child: _loadingUser
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(l.t('profile_search_btn')),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    FilledButton(
+                      onPressed: _loadingUser ? null : _search,
+                      child: Text(l.t('profile_search_btn')),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // ── User error ───────────────────────────────────────────────────
           if (_userError != null)
-            SliverToBoxAdapter(
-              child: ErrorView(message: _userError),
-            ),
+            SliverToBoxAdapter(child: ErrorView(message: _userError)),
 
-          // ── User header ──────────────────────────────────────────────────
           if (_user != null) ...[
-            SliverToBoxAdapter(child: _UserHeader(user: _user!, l: l, onOpenUrl: _openUrl)),
-            const SliverToBoxAdapter(child: Divider()),
-
-            // ── PBs section ──────────────────────────────────────────────
             SliverToBoxAdapter(
-              child: SectionHeader(title: l.t('profile_pbs')),
+              child: _UserHeader(user: _user!, l: l, onOpenUrl: _openUrl),
             ),
+            const SliverToBoxAdapter(child: Divider()),
+            SliverToBoxAdapter(child: SectionHeader(title: l.t('profile_pbs'))),
 
             if (_loadingPbs)
               const SliverToBoxAdapter(child: ShimmerList(count: 6))
@@ -215,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Divider(height: 1, indent: 72),
                 itemBuilder: (_, i) => _PbTile(pb: _pbs![i], l: l),
               ),
-          ] else if (!_loadingUser)
+          ] else if (!_loadingUser && !_isDirectProfile)
             SliverToBoxAdapter(
               child: EmptyView(
                 message: l.t('profile_enter_user'),
@@ -229,8 +203,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-// ── User header ──────────────────────────────────────────────────────────────
 
 class _UserHeader extends StatelessWidget {
   final Player user;
@@ -248,11 +220,10 @@ class _UserHeader extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
           CircleAvatar(
             radius: 38,
             backgroundColor: theme.colorScheme.primaryContainer,
@@ -284,8 +255,7 @@ class _UserHeader extends StatelessWidget {
                   Text(
                     user.pronouns!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                        color: theme.colorScheme.onSurfaceVariant),
                   ),
                 if (user.country != null)
                   Padding(
@@ -299,8 +269,7 @@ class _UserHeader extends StatelessWidget {
                         Text(
                           user.country!.toUpperCase(),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                              color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -311,39 +280,34 @@ class _UserHeader extends StatelessWidget {
                     child: Text(
                       '${l.t('profile_signed_up')}: ${AppUtils.formatDate(user.signupDate?.substring(0, 10))}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                          color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ),
                 const SizedBox(height: 8),
-                // Socials
                 Wrap(
                   spacing: 8,
+                  runSpacing: 4,
                   children: [
                     if (user.socials['twitch'] != null)
                       _SocialChip(
-                        label: 'Twitch',
-                        icon: Icons.live_tv_rounded,
-                        onTap: () => onOpenUrl(user.socials['twitch']!),
-                      ),
+                          label: 'Twitch',
+                          icon: Icons.live_tv_rounded,
+                          onTap: () => onOpenUrl(user.socials['twitch']!)),
                     if (user.socials['youtube'] != null)
                       _SocialChip(
-                        label: 'YouTube',
-                        icon: Icons.play_circle_rounded,
-                        onTap: () => onOpenUrl(user.socials['youtube']!),
-                      ),
+                          label: 'YouTube',
+                          icon: Icons.play_circle_rounded,
+                          onTap: () => onOpenUrl(user.socials['youtube']!)),
                     if (user.socials['twitter'] != null)
                       _SocialChip(
-                        label: 'Twitter',
-                        icon: Icons.tag_rounded,
-                        onTap: () => onOpenUrl(user.socials['twitter']!),
-                      ),
+                          label: 'Twitter',
+                          icon: Icons.tag_rounded,
+                          onTap: () => onOpenUrl(user.socials['twitter']!)),
                     if (user.weblink != null)
                       _SocialChip(
-                        label: 'speedrun.com',
-                        icon: Icons.open_in_browser_rounded,
-                        onTap: () => onOpenUrl(user.weblink!),
-                      ),
+                          label: 'speedrun.com',
+                          icon: Icons.open_in_browser_rounded,
+                          onTap: () => onOpenUrl(user.weblink!)),
                   ],
                 ),
               ],
@@ -360,24 +324,17 @@ class _SocialChip extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _SocialChip({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
+  const _SocialChip(
+      {required this.label, required this.icon, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: Icon(icon, size: 14),
-      label: Text(label),
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
-    );
-  }
+  Widget build(BuildContext context) => ActionChip(
+        avatar: Icon(icon, size: 14),
+        label: Text(label),
+        onPressed: onTap,
+        visualDensity: VisualDensity.compact,
+      );
 }
-
-// ── PB tile ──────────────────────────────────────────────────────────────────
 
 class _PbTile extends StatelessWidget {
   final PersonalBest pb;
@@ -394,15 +351,12 @@ class _PbTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          // Place
           SizedBox(
             width: 44,
             child: isTop3
-                ? Text(
-                    AppUtils.rankEmoji(pb.place),
+                ? Text(AppUtils.rankEmoji(pb.place),
                     style: const TextStyle(fontSize: 22),
-                    textAlign: TextAlign.center,
-                  )
+                    textAlign: TextAlign.center)
                 : Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 3),
@@ -421,7 +375,6 @@ class _PbTile extends StatelessWidget {
                   ),
           ),
           const SizedBox(width: 12),
-          // Game + category
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,9 +388,8 @@ class _PbTile extends StatelessWidget {
                 ),
                 Text(
                   pb.categoryName ?? '—',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.primary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -452,9 +404,9 @@ class _PbTile extends StatelessWidget {
               ],
             ),
           ),
-          // Time
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: isTop3
                   ? Color(AppUtils.rankColor(pb.place)).withOpacity(0.15)
@@ -462,8 +414,8 @@ class _PbTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: isTop3
                   ? Border.all(
-                      color:
-                          Color(AppUtils.rankColor(pb.place)).withOpacity(0.5))
+                      color: Color(AppUtils.rankColor(pb.place))
+                          .withOpacity(0.5))
                   : null,
             ),
             child: Text(

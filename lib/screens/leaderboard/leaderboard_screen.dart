@@ -6,6 +6,8 @@ import '../../widgets/game_card.dart';
 import '../../widgets/shared_widgets.dart';
 import 'game_detail_screen.dart';
 
+enum _SortMode { active, nameAZ, newest }
+
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -23,21 +25,29 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   bool _searching = false;
   String? _error;
   String _query = '';
+  _SortMode _sortMode = _SortMode.active;
 
   @override
   void initState() {
     super.initState();
-    _loadPopular();
+    _loadGames();
     _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> _loadPopular() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _loadGames() async {
+    setState(() { _loading = true; _error = null; });
     try {
-      final games = await _api.getPopularGames(max: 24);
+      List<Game> games;
+      switch (_sortMode) {
+        case _SortMode.active:
+          games = await _api.getActiveGames(max: 24);
+        case _SortMode.nameAZ:
+          games = await _api.getPopularGames(
+              max: 24, orderBy: 'name.int', direction: 'asc');
+        case _SortMode.newest:
+          games = await _api.getPopularGames(
+              max: 24, orderBy: 'released', direction: 'desc');
+      }
       if (mounted) setState(() => _games = games);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -51,10 +61,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     if (q == _query) return;
     _query = q;
     if (q.isEmpty) {
-      setState(() {
-        _searchResults = null;
-        _searching = false;
-      });
+      setState(() { _searchResults = null; _searching = false; });
       return;
     }
     _search(q);
@@ -84,12 +91,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     }
     return games..sort((a, b) => score(b).compareTo(score(a)));
   }
-  void _openGame(Game game) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),
-    );
-  }
+
+  void _openGame(Game game) => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)));
 
   @override
   void dispose() {
@@ -103,24 +107,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isSearching = _searchController.text.isNotEmpty;
-    final displayGames =
-        isSearching ? (_searchResults ?? []) : (_games ?? []);
+    final displayGames = isSearching ? (_searchResults ?? []) : (_games ?? []);
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadPopular,
+        onRefresh: _loadGames,
         child: CustomScrollView(
           slivers: [
-            SliverAppBar.large(
-              title: Text(
-                l.t('lb_title'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            // Title pinned at top — same style as other screens
+            SliverAppBar(
+              pinned: true,
+              title: const Text(
+                'Games',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
+
             // Search bar
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: SearchBar(
                   controller: _searchController,
                   hintText: l.t('search_hint_games'),
@@ -131,29 +137,63 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         icon: const Icon(Icons.clear_rounded),
                         onPressed: () {
                           _searchController.clear();
-                          setState(() {
-                            _searchResults = null;
-                            _query = '';
-                          });
+                          setState(() { _searchResults = null; _query = ''; });
                         },
                       ),
                   ],
                 ),
               ),
             ),
+
+            // Sort chips — only when not searching
+            if (!isSearching)
+              SliverToBoxAdapter(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      _chip('Active', Icons.trending_up_rounded,
+                          _sortMode == _SortMode.active, () {
+                        setState(() => _sortMode = _SortMode.active);
+                        _loadGames();
+                      }),
+                      const SizedBox(width: 8),
+                      _chip('A → Z', Icons.sort_by_alpha_rounded,
+                          _sortMode == _SortMode.nameAZ, () {
+                        setState(() => _sortMode = _SortMode.nameAZ);
+                        _loadGames();
+                      }),
+                      const SizedBox(width: 8),
+                      _chip('Newest', Icons.new_releases_rounded,
+                          _sortMode == _SortMode.newest, () {
+                        setState(() => _sortMode = _SortMode.newest);
+                        _loadGames();
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
             // Section label
             SliverToBoxAdapter(
-              child: SectionHeader(
-                title: isSearching
-                    ? (l.t('search_games'))
-                    : l.t('lb_popular'),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                child: Text(
+                  isSearching
+                      ? l.t('search_games')
+                      : _sectionLabel(_sortMode),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
+
             // Content
             if (_error != null && !isSearching)
               SliverToBoxAdapter(
-                child: ErrorView(message: _error, onRetry: _loadPopular),
-              )
+                  child: ErrorView(message: _error, onRetry: _loadGames))
             else if (_loading && !isSearching)
               const SliverToBoxAdapter(child: ShimmerGrid(count: 9))
             else if (_searching)
@@ -197,4 +237,30 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
     );
   }
+
+  Widget _chip(String label, IconData icon, bool selected, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 14,
+              color: selected
+                  ? theme.colorScheme.onSecondaryContainer
+                  : theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(label),
+        ],
+      ),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
+  }
+
+  String _sectionLabel(_SortMode mode) => switch (mode) {
+        _SortMode.active => 'Active games',
+        _SortMode.nameAZ => 'All games (A → Z)',
+        _SortMode.newest => 'Recently released',
+      };
 }
