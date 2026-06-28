@@ -4,7 +4,6 @@ import 'home/home_screen.dart';
 import 'leaderboard/leaderboard_screen.dart';
 import 'search/search_screen.dart';
 import 'profile/profile_screen.dart';
-import 'settings/settings_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -21,7 +20,6 @@ class _MainScaffoldState extends State<MainScaffold> {
     LeaderboardScreen(),
     SearchScreen(),
     ProfileScreen(),
-    SettingsScreen(),
   ];
 
   @override
@@ -43,9 +41,9 @@ class _MainScaffoldState extends State<MainScaffold> {
             label: l.t('nav_home'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.leaderboard_outlined),
-            selectedIcon: const Icon(Icons.leaderboard_rounded),
-            label: l.t('nav_leaderboards'),
+            icon: const Icon(Icons.videogame_asset_outlined),
+            selectedIcon: const Icon(Icons.videogame_asset_rounded),
+            label: 'Games',
           ),
           NavigationDestination(
             icon: const Icon(Icons.search_rounded),
@@ -56,11 +54,6 @@ class _MainScaffoldState extends State<MainScaffold> {
             icon: const Icon(Icons.person_outline_rounded),
             selectedIcon: const Icon(Icons.person_rounded),
             label: l.t('nav_profile'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings_rounded),
-            label: l.t('nav_settings'),
           ),
         ],
       ),

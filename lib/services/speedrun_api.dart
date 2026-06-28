@@ -66,6 +66,35 @@ class SpeedrunApiService {
     return list.map((e) => Game.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Games derived from recent run activity (with cover images)
+  Future<List<Game>> getActiveGames({int max = 12}) async {
+    final data = await _get('/runs', params: {
+      'status': 'verified',
+      'orderby': 'verify-date',
+      'direction': 'desc',
+      'max': '50',
+      'embed': 'game',
+    });
+    final list = data['data'] as List<dynamic>;
+    final seen = <String>{};
+    final games = <Game>[];
+    for (final r in list) {
+      final gameEmbed = r['game'];
+      if (gameEmbed is Map) {
+        final gameData = gameEmbed['data'] as Map<String, dynamic>?;
+        if (gameData != null) {
+          final game = Game.fromJson(gameData);
+          if (!seen.contains(game.id)) {
+            seen.add(game.id);
+            games.add(game);
+            if (games.length >= max) break;
+          }
+        }
+      }
+    }
+    return games;
+  }
+
   /// Fetch a single game by ID or abbreviation
   Future<Game> getGame(String idOrAbbr) async {
     final data = await _get('/games/$idOrAbbr');

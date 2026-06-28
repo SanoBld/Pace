@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/run.dart';
 import '../../models/game.dart';
+import '../../models/player.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/speedrun_api.dart';
 import '../../widgets/run_tile.dart';
 import '../../widgets/game_card.dart';
 import '../../widgets/shared_widgets.dart';
 import '../leaderboard/game_detail_screen.dart';
+import '../profile/profile_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _api = SpeedrunApiService();
   List<Run>? _recentRuns;
-  List<Game>? _popularGames;
+  List<Game>? _activeGames;
   String? _runsError;
   String? _gamesError;
   bool _loadingRuns = true;
@@ -29,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadRecentRuns();
-    _loadPopularGames();
+    _loadActiveGames();
   }
 
   Future<void> _loadRecentRuns() async {
@@ -44,11 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadPopularGames() async {
+  Future<void> _loadActiveGames() async {
     if (mounted) setState(() { _loadingGames = true; _gamesError = null; });
     try {
-      final games = await _api.getPopularGames(max: 12);
-      if (mounted) setState(() => _popularGames = games);
+      final games = await _api.getActiveGames(max: 12);
+      if (mounted) setState(() => _activeGames = games);
     } catch (e) {
       if (mounted) setState(() => _gamesError = e.toString());
     } finally {
@@ -57,9 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openGame(Game game) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),
-      );
+        context, MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)));
+
+  void _openPlayer(Player player) => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => ProfileScreen(initialUser: player)));
+
+  void _openSettings() => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
 
   @override
   void dispose() {
@@ -76,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
-          await Future.wait([_loadRecentRuns(), _loadPopularGames()]);
+          await Future.wait([_loadRecentRuns(), _loadActiveGames()]);
         },
         child: CustomScrollView(
           slivers: [
@@ -93,16 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: () {
-                    _loadRecentRuns();
-                    _loadPopularGames();
-                  },
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: 'Settings',
+                  onPressed: _openSettings,
                 ),
               ],
             ),
 
-            // ── Favorites ────────────────────────────────────────────────
+            // ── Favorites ─────────────────────────────────────────────
             if (favs.favorites.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: _SectionHeader(
@@ -135,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Divider(height: 8, indent: 16, endIndent: 16)),
             ],
 
-            // ── Recent Runs ──────────────────────────────────────────────
+            // ── Recent Runs ───────────────────────────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
                 icon: Icons.history_rounded,
@@ -169,11 +174,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               name: run.gameName ?? run.gameId!,
                             ))
                         : null,
+                    onPlayerTap: run.players.isNotEmpty
+                        ? () => _openPlayer(run.players.first)
+                        : null,
                   );
                 },
               ),
 
-            // ── Trending ─────────────────────────────────────────────────
+            // ── Active Games ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
                 icon: Icons.trending_up_rounded,
@@ -183,20 +191,20 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_gamesError != null)
               SliverToBoxAdapter(
                 child: _InlineError(
-                    message: _gamesError!, onRetry: _loadPopularGames),
+                    message: _gamesError!, onRetry: _loadActiveGames),
               )
             else if (_loadingGames)
               const SliverToBoxAdapter(child: ShimmerGrid(count: 6))
-            else if (_popularGames != null && _popularGames!.isNotEmpty)
+            else if (_activeGames != null && _activeGames!.isNotEmpty)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 sliver: SliverGrid(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) => GameCard(
-                      game: _popularGames![i],
-                      onTap: () => _openGame(_popularGames![i]),
+                      game: _activeGames![i],
+                      onTap: () => _openGame(_activeGames![i]),
                     ),
-                    childCount: _popularGames!.length,
+                    childCount: _activeGames!.length,
                   ),
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(

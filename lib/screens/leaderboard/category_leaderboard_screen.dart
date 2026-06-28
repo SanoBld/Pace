@@ -82,6 +82,13 @@ class _CategoryLeaderboardScreenState
           widget.category.id,
           variables: _selectedVars.isNotEmpty ? _selectedVars : null,
         );
+        // Fallback: if 0 runs with variable filters, retry without
+        if (lb.runs.isEmpty && _selectedVars.isNotEmpty) {
+          lb = await _api.getLeaderboard(
+            widget.game.id,
+            widget.category.id,
+          );
+        }
       }
       if (mounted) setState(() => _leaderboard = lb);
     } catch (e) {

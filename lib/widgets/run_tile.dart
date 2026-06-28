@@ -5,13 +5,15 @@ import '../core/utils.dart';
 
 class RunTile extends StatelessWidget {
   final Run run;
-  final VoidCallback? onTap;
+  final VoidCallback? onTap;        // tap right side → game
+  final VoidCallback? onPlayerTap;  // tap avatar/name → player profile
   final bool showGame;
 
   const RunTile({
     super.key,
     required this.run,
     this.onTap,
+    this.onPlayerTap,
     this.showGame = true,
   });
 
@@ -24,15 +26,15 @@ class RunTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              // Avatar + video badge
-              Stack(
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          // ── Left: player tap zone ────────────────────────────────────
+          InkWell(
+            onTap: onPlayerTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   CircleAvatar(
@@ -43,7 +45,9 @@ class RunTile extends StatelessWidget {
                         : null,
                     child: avatarUrl == null
                         ? Text(
-                            playerName.isNotEmpty ? playerName[0].toUpperCase() : '?',
+                            playerName.isNotEmpty
+                                ? playerName[0].toUpperCase()
+                                : '?',
                             style: TextStyle(
                               color: theme.colorScheme.onPrimaryContainer,
                               fontWeight: FontWeight.bold,
@@ -57,101 +61,108 @@ class RunTile extends StatelessWidget {
                       right: -2,
                       bottom: -2,
                       child: Container(
-                        width: 16,
-                        height: 16,
+                        width: 15,
+                        height: 15,
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: theme.colorScheme.surface,
-                            width: 2,
-                          ),
+                              color: theme.colorScheme.surface, width: 1.5),
                         ),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          size: 9,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.play_arrow_rounded,
+                            size: 9, color: Colors.white),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(width: 13),
-              // Text info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+            ),
+          ),
+
+          // ── Right: game tap zone ─────────────────────────────────────
+          Expanded(
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 12, 14, 12),
+                child: Row(
                   children: [
-                    Text(
-                      playerName,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            playerName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (showGame && run.gameName != null)
+                            Text(
+                              run.gameName!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          if (run.categoryName != null)
+                            Text(
+                              run.categoryName!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (showGame && run.gameName != null)
-                      Text(
-                        run.gameName!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            AppUtils.formatTime(run.primaryTime),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                              letterSpacing: 0.3,
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    if (run.categoryName != null)
-                      Text(
-                        run.categoryName!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        if (run.date != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              AppUtils.formatDate(run.date),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // Time + date
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      AppUtils.formatTime(run.primaryTime),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  if (run.date != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        AppUtils.formatDate(run.date),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
