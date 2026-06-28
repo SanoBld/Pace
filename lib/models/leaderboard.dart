@@ -7,25 +7,33 @@ class LeaderboardEntry {
 
   const LeaderboardEntry({required this.place, required this.run});
 
-  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
-    // Players can be embedded at the run level or separately
+  factory LeaderboardEntry.fromJson(
+    Map<String, dynamic> json, {
+    Map<String, Player> playerMap = const {},
+  }) {
     final runData = json['run'] as Map<String, dynamic>;
 
-    // Merge embedded players if provided at entry level
+    // Resolve players: prefer top-level playerMap (full data), fallback to entry-level
     List<Player> players = [];
-    final embeddedPlayers = json['players'] as List<dynamic>?;
-    if (embeddedPlayers != null) {
-      players = embeddedPlayers.map((p) {
+    final playersRaw = json['players'];
+    if (playersRaw is List) {
+      for (final p in playersRaw) {
+        if (p is! Map) continue;
         if (p['rel'] == 'guest') {
-          return Player.guest(p['name'] as String? ?? 'Guest');
+          players.add(Player.guest(p['name'] as String? ?? 'Guest'));
+        } else {
+          final id = p['id'] as String? ?? '';
+          // Look up full player data from map first
+          players.add(playerMap[id] ??
+              (p.containsKey('names')
+                  ? Player.fromJson(p as Map<String, dynamic>)
+                  : Player(id: id, name: id)));
         }
-        return Player.fromJson(p as Map<String, dynamic>);
-      }).toList();
+      }
     }
 
     final run = Run.fromJson(runData);
 
-    // If we got embedded players, override the ones in the run
     if (players.isNotEmpty) {
       return LeaderboardEntry(
         place: json['place'] as int,
@@ -52,10 +60,7 @@ class LeaderboardEntry {
       );
     }
 
-    return LeaderboardEntry(
-      place: json['place'] as int,
-      run: run,
-    );
+    return LeaderboardEntry(place: json['place'] as int, run: run);
   }
 }
 
@@ -74,8 +79,29 @@ class Leaderboard {
 
   factory Leaderboard.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>;
+
+    // Build player lookup map from top-level embedded players
+    final playerMap = <String, Player>{};
+    final playersEmbed = data['players'];
+    if (playersEmbed is Map) {
+      final list = playersEmbed['data'] as List<dynamic>?;
+      if (list != null) {
+        for (final p in list) {
+          if (p is Map<String, dynamic>) {
+            try {
+              final player = Player.fromJson(p);
+              playerMap[player.id] = player;
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
     final runs = (data['runs'] as List<dynamic>? ?? [])
-        .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+        .map((e) => LeaderboardEntry.fromJson(
+              e as Map<String, dynamic>,
+              playerMap: playerMap,
+            ))
         .toList();
 
     return Leaderboard(

@@ -9,6 +9,7 @@ import '../../services/speedrun_api.dart';
 import '../../widgets/leaderboard_entry_tile.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../core/utils.dart';
+import '../profile/profile_screen.dart';
 
 class CategoryLeaderboardScreen extends StatefulWidget {
   final Game game;
@@ -72,22 +73,15 @@ class _CategoryLeaderboardScreenState
       Leaderboard lb;
       if (widget.levelId != null) {
         lb = await _api.getLevelLeaderboard(
-          widget.game.id,
-          widget.levelId!,
-          widget.category.id,
-        );
+          widget.game.id, widget.levelId!, widget.category.id);
       } else {
         lb = await _api.getLeaderboard(
           widget.game.id,
           widget.category.id,
           variables: _selectedVars.isNotEmpty ? _selectedVars : null,
         );
-        // Fallback: if 0 runs with variable filters, retry without
         if (lb.runs.isEmpty && _selectedVars.isNotEmpty) {
-          lb = await _api.getLeaderboard(
-            widget.game.id,
-            widget.category.id,
-          );
+          lb = await _api.getLeaderboard(widget.game.id, widget.category.id);
         }
       }
       if (mounted) setState(() => _leaderboard = lb);
@@ -106,6 +100,15 @@ class _CategoryLeaderboardScreenState
   Future<void> _openVideo(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _openPlayer(LeaderboardEntry entry) {
+    if (entry.run.players.isEmpty) return;
+    final player = entry.run.players.first;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProfileScreen(initialUser: player)),
+    );
   }
 
   @override
@@ -257,7 +260,8 @@ class _CategoryLeaderboardScreenState
                   final entry = _leaderboard!.runs[i];
                   return LeaderboardEntryTile(
                     entry: entry,
-                    onTap: entry.run.videoUrl != null
+                    onTap: () => _openPlayer(entry),
+                    onVideoTap: entry.run.videoUrl != null
                         ? () => _openVideo(entry.run.videoUrl!)
                         : null,
                   );

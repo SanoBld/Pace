@@ -56,7 +56,9 @@ class _SearchScreenState extends State<SearchScreen>
 
     await Future.wait([
       _api.searchGames(q, max: 20).then((r) {
-        if (mounted && q == _query) setState(() => _gameResults = r);
+        if (mounted && q == _query) {
+          setState(() => _gameResults = _sortByRelevance(r, q));
+        }
       }).catchError((_) {}).whenComplete(() {
         if (mounted) setState(() => _loadingGames = false);
       }),
@@ -66,6 +68,18 @@ class _SearchScreenState extends State<SearchScreen>
         if (mounted) setState(() => _loadingPlayers = false);
       }),
     ]);
+  }
+
+  List<Game> _sortByRelevance(List<Game> games, String query) {
+    final q = query.toLowerCase().trim();
+    int score(Game g) {
+      final name = g.name.toLowerCase();
+      if (name == q) return 3;
+      if (name.startsWith(q)) return 2;
+      if (name.contains(q)) return 1;
+      return 0;
+    }
+    return games..sort((a, b) => score(b).compareTo(score(a)));
   }
 
   void _openGame(Game game) {

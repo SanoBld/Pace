@@ -5,12 +5,14 @@ import '../core/utils.dart';
 
 class LeaderboardEntryTile extends StatelessWidget {
   final LeaderboardEntry entry;
-  final VoidCallback? onTap;
+  final VoidCallback? onTap;       // tap row → player profile
+  final VoidCallback? onVideoTap;  // tap video icon → open video
 
   const LeaderboardEntryTile({
     super.key,
     required this.entry,
     this.onTap,
+    this.onVideoTap,
   });
 
   @override
@@ -30,15 +32,13 @@ class LeaderboardEntryTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            // Rank
+            // Rank badge
             SizedBox(
               width: 44,
               child: isTop3
-                  ? Text(
-                      AppUtils.rankEmoji(place),
+                  ? Text(AppUtils.rankEmoji(place),
                       style: const TextStyle(fontSize: 22),
-                      textAlign: TextAlign.center,
-                    )
+                      textAlign: TextAlign.center)
                   : Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -103,45 +103,44 @@ class LeaderboardEntryTile extends StatelessWidget {
                 ],
               ),
             ),
-            // Time
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isTop3
-                        ? Color(AppUtils.rankColor(place)).withOpacity(0.15)
-                        : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isTop3
-                        ? Border.all(
-                            color: Color(AppUtils.rankColor(place))
-                                .withOpacity(0.5))
-                        : null,
-                  ),
-                  child: Text(
-                    AppUtils.formatTime(run.primaryTime),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
-                      color: isTop3
-                          ? Color(AppUtils.rankColor(place))
-                          : theme.colorScheme.onSurface,
-                    ),
-                  ),
+            // Time badge
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isTop3
+                    ? Color(AppUtils.rankColor(place)).withOpacity(0.15)
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                border: isTop3
+                    ? Border.all(
+                        color:
+                            Color(AppUtils.rankColor(place)).withOpacity(0.5))
+                    : null,
+              ),
+              child: Text(
+                AppUtils.formatTime(run.primaryTime),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  color: isTop3
+                      ? Color(AppUtils.rankColor(place))
+                      : theme.colorScheme.onSurface,
                 ),
-                if (run.videoUrl != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: Icon(
-                      Icons.play_circle_outline_rounded,
-                      size: 18,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-              ],
+              ),
             ),
+            // Video button
+            if (onVideoTap != null)
+              IconButton(
+                icon: Icon(
+                  Icons.play_circle_outline_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                onPressed: onVideoTap,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.only(left: 4),
+              ),
           ],
         ),
       ),
