@@ -12,55 +12,37 @@ class LeaderboardEntry {
     Map<String, Player> playerMap = const {},
   }) {
     final runData = json['run'] as Map<String, dynamic>;
-
-    // Resolve players: prefer top-level playerMap (full data), fallback to entry-level
-    List<Player> players = [];
-    final playersRaw = json['players'];
-    if (playersRaw is List) {
-      for (final p in playersRaw) {
-        if (p is! Map) continue;
-        if (p['rel'] == 'guest') {
-          players.add(Player.guest(p['name'] as String? ?? 'Guest'));
-        } else {
-          final id = p['id'] as String? ?? '';
-          // Look up full player data from map first
-          players.add(playerMap[id] ??
-              (p.containsKey('names')
-                  ? Player.fromJson(p as Map<String, dynamic>)
-                  : Player(id: id, name: id)));
-        }
-      }
-    }
-
     final run = Run.fromJson(runData);
 
-    if (players.isNotEmpty) {
-      return LeaderboardEntry(
-        place: json['place'] as int,
-        run: Run(
-          id: run.id,
-          gameId: run.gameId,
-          gameName: run.gameName,
-          categoryId: run.categoryId,
-          categoryName: run.categoryName,
-          weblink: run.weblink,
-          primaryTime: run.primaryTime,
-          realtimeTime: run.realtimeTime,
-          realtimeNoLoads: run.realtimeNoLoads,
-          ingameTime: run.ingameTime,
-          date: run.date,
-          submitted: run.submitted,
-          status: run.status,
-          players: players,
-          videoUrl: run.videoUrl,
-          comment: run.comment,
-          platform: run.platform,
-          emulated: run.emulated,
-        ),
-      );
-    }
+    // run.players are stub objects (name == id) from Run.fromJson.
+    // Resolve full player data from the top-level playerMap.
+    final resolved = run.players
+        .map((p) => playerMap.containsKey(p.id) ? playerMap[p.id]! : p)
+        .toList();
 
-    return LeaderboardEntry(place: json['place'] as int, run: run);
+    return LeaderboardEntry(
+      place: json['place'] as int,
+      run: Run(
+        id: run.id,
+        gameId: run.gameId,
+        gameName: run.gameName,
+        categoryId: run.categoryId,
+        categoryName: run.categoryName,
+        weblink: run.weblink,
+        primaryTime: run.primaryTime,
+        realtimeTime: run.realtimeTime,
+        realtimeNoLoads: run.realtimeNoLoads,
+        ingameTime: run.ingameTime,
+        date: run.date,
+        submitted: run.submitted,
+        status: run.status,
+        players: resolved.isNotEmpty ? resolved : run.players,
+        videoUrl: run.videoUrl,
+        comment: run.comment,
+        platform: run.platform,
+        emulated: run.emulated,
+      ),
+    );
   }
 }
 
@@ -80,7 +62,7 @@ class Leaderboard {
   factory Leaderboard.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>;
 
-    // Build player lookup map from top-level embedded players
+    // Build full player map from embedded top-level players
     final playerMap = <String, Player>{};
     final playersEmbed = data['players'];
     if (playersEmbed is Map) {

@@ -39,6 +39,9 @@ class _CategoryLeaderboardScreenState
   final Map<String, String> _selectedVars = {};
   bool _loading = true;
   String? _error;
+  int? _maxPlace; // null = all
+
+  static const _topFilters = [10, 25, 50, 100];
 
   @override
   void initState() {
@@ -51,8 +54,6 @@ class _CategoryLeaderboardScreenState
       final vars = await _api.getCategoryVariables(widget.category.id);
       final subcategoryVars = vars.where((v) => v.isSubcategory).toList();
       setState(() => _variables = subcategoryVars);
-
-      // Set defaults
       for (final v in subcategoryVars) {
         if (v.defaultValue != null) {
           _selectedVars[v.id] = v.defaultValue!;
@@ -65,21 +66,19 @@ class _CategoryLeaderboardScreenState
   }
 
   Future<void> _loadLeaderboard() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
       Leaderboard lb;
       if (widget.levelId != null) {
         lb = await _api.getLevelLeaderboard(
-          widget.game.id, widget.levelId!, widget.category.id);
+            widget.game.id, widget.levelId!, widget.category.id);
       } else {
         lb = await _api.getLeaderboard(
           widget.game.id,
           widget.category.id,
           variables: _selectedVars.isNotEmpty ? _selectedVars : null,
         );
+        // Fallback: retry without variables if 0 runs
         if (lb.runs.isEmpty && _selectedVars.isNotEmpty) {
           lb = await _api.getLeaderboard(widget.game.id, widget.category.id);
         }
@@ -92,6 +91,13 @@ class _CategoryLeaderboardScreenState
     }
   }
 
+  List<LeaderboardEntry> get _filteredRuns {
+    if (_leaderboard == null) return [];
+    final all = _leaderboard!.runs;
+    if (_maxPlace == null) return all;
+    return all.where((e) => e.place <= _maxPlace!).toList();
+  }
+
   void _onVarChanged(String varId, String valueId) {
     setState(() => _selectedVars[varId] = valueId);
     _loadLeaderboard();
@@ -99,15 +105,17 @@ class _CategoryLeaderboardScreenState
 
   Future<void> _openVideo(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _openPlayer(LeaderboardEntry entry) {
     if (entry.run.players.isEmpty) return;
-    final player = entry.run.players.first;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ProfileScreen(initialUser: player)),
+      MaterialPageRoute(
+          builder: (_) => ProfileScreen(initialUser: entry.run.players.first)),
     );
   }
 
@@ -121,6 +129,7 @@ class _CategoryLeaderboardScreenState
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final filtered = _filteredRuns;
 
     final title = widget.levelName != null
         ? '${widget.levelName} — ${widget.category.name}'
@@ -137,15 +146,11 @@ class _CategoryLeaderboardScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style:
-                          const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(
-                    widget.game.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(widget.game.name,
+                      style: TextStyle(
+                          fontSize: 12, color: theme.colorScheme.primary)),
                 ],
               ),
               actions: [
@@ -156,7 +161,7 @@ class _CategoryLeaderboardScreenState
               ],
             ),
 
-            // Sub-category filters
+            // Subcategory filters
             if (_variables.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
@@ -196,22 +201,54 @@ class _CategoryLeaderboardScreenState
                 ),
               ),
 
-            // Summary row
+            // Top N filter
+            if (_leaderboard != null && _leaderboard!.runs.isNotEmpty)
+              SliverToBoxAdapter(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: const Text('All'),
+                          selected: _maxPlace == null,
+                          onSelected: (_) =>
+                              setState(() => _maxPlace = null),
+                        ),
+                      ),
+                      ..._topFilters
+                          .where((n) => n < _leaderboard!.runs.length)
+                          .map((n) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text('Top $n'),
+                                  selected: _maxPlace == n,
+                                  onSelected: (_) =>
+                                      setState(() => _maxPlace = n),
+                                ),
+                              )),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Summary
             if (_leaderboard != null && !_loading)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                   child: Row(
                     children: [
                       Icon(Icons.leaderboard_rounded,
-                          size: 16,
-                          color: theme.colorScheme.primary),
+                          size: 14, color: theme.colorScheme.primary),
                       const SizedBox(width: 6),
                       Text(
-                        '${_leaderboard!.runs.length} runs',
+                        '${filtered.length} runs'
+                        '${_maxPlace != null ? ' (top $_maxPlace)' : ''}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                            color: theme.colorScheme.onSurfaceVariant),
                       ),
                       if (_leaderboard!.runs.isNotEmpty) ...[
                         const Spacer(),
@@ -245,19 +282,22 @@ class _CategoryLeaderboardScreenState
               )
             else if (_loading)
               const SliverToBoxAdapter(child: ShimmerList(count: 10))
-            else if (_leaderboard == null || _leaderboard!.runs.isEmpty)
+            else if (filtered.isEmpty)
               SliverToBoxAdapter(
-                child:
-                    EmptyView(message: l.t('lb_no_runs'),
-                        icon: Icons.sports_score_rounded),
+                child: EmptyView(
+                  message: _leaderboard!.runs.isEmpty
+                      ? l.t('lb_no_runs')
+                      : 'No runs match this filter',
+                  icon: Icons.sports_score_rounded,
+                ),
               )
             else
               SliverList.separated(
-                itemCount: _leaderboard!.runs.length,
+                itemCount: filtered.length,
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, indent: 16, endIndent: 16),
                 itemBuilder: (_, i) {
-                  final entry = _leaderboard!.runs[i];
+                  final entry = filtered[i];
                   return LeaderboardEntryTile(
                     entry: entry,
                     onTap: () => _openPlayer(entry),
