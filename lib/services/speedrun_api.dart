@@ -56,13 +56,13 @@ class SpeedrunApiService {
     return list.map((e) => Game.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Fetch popular/recent games (bulk endpoint)
-  Future<List<Game>> getPopularGames({int max = 20}) async {
-    final data = await _get('/games', params: {
-      'max': max.toString(),
-      'orderby': 'released',
-      'direction': 'desc',
-    });
+  Future<List<Game>> getPopularGames({int max = 20, String? orderBy, String direction = 'desc'}) async {
+    final params = <String, String>{'max': max.toString()};
+    if (orderBy != null) {
+      params['orderby'] = orderBy;
+      params['direction'] = direction;
+    }
+    final data = await _get('/games', params: params);
     final list = data['data'] as List<dynamic>;
     return list.map((e) => Game.fromJson(e as Map<String, dynamic>)).toList();
   }

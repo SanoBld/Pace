@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/run.dart';
 import '../core/utils.dart';
-import '../l10n/app_localizations.dart';
 
 class RunTile extends StatelessWidget {
   final Run run;
@@ -18,10 +17,10 @@ class RunTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final playerName = run.players.isNotEmpty ? run.players.first.name : '?';
     final avatarUrl = run.players.isNotEmpty ? run.players.first.avatarUrl : null;
+    final hasVideo = run.videoUrl != null;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -29,34 +28,60 @@ class RunTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              // Avatar
-              CircleAvatar(
-                radius: 22,
-                backgroundColor:
-                    theme.colorScheme.surfaceContainerHighest,
-                backgroundImage: avatarUrl != null
-                    ? CachedNetworkImageProvider(avatarUrl)
-                    : null,
-                child: avatarUrl == null
-                    ? Text(
-                        playerName.isNotEmpty
-                            ? playerName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
+              // Avatar + video badge
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    backgroundImage: avatarUrl != null
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                    child: avatarUrl == null
+                        ? Text(
+                            playerName.isNotEmpty ? playerName[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          )
+                        : null,
+                  ),
+                  if (hasVideo)
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
                           color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.surface,
+                            width: 2,
+                          ),
                         ),
-                      )
-                    : null,
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          size: 9,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(width: 12),
-              // Info
+              const SizedBox(width: 13),
+              // Text info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       playerName,
@@ -71,6 +96,7 @@ class RunTile extends StatelessWidget {
                         run.gameName!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -80,6 +106,7 @@ class RunTile extends StatelessWidget {
                         run.categoryName!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -87,17 +114,17 @@ class RunTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // Time & date
+              const SizedBox(width: 10),
+              // Time + date
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       AppUtils.formatTime(run.primaryTime),
@@ -105,30 +132,23 @@ class RunTile extends StatelessWidget {
                         color: theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'monospace',
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
                   if (run.date != null)
-                    Text(
-                      AppUtils.formatDate(run.date),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 11,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        AppUtils.formatDate(run.date),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                 ],
               ),
-              // Video indicator
-              if (run.videoUrl != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: Icon(
-                    Icons.play_circle_outline_rounded,
-                    size: 18,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
             ],
           ),
         ),

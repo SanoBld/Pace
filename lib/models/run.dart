@@ -63,23 +63,25 @@ class Run {
 
     List<Player> players = [];
     final playersRaw = json['players'];
-    if (playersRaw is List) {
+    if (playersRaw is Map) {
+      // embed=players → {"data": [...]}
+      final embedded = playersRaw['data'] as List<dynamic>?;
+      if (embedded != null) {
+        players = embedded.map((p) {
+          if (p is Map && p['rel'] == 'guest') {
+            return Player.guest(p['name'] as String? ?? 'Guest');
+          }
+          return Player.fromJson(p as Map<String, dynamic>);
+        }).toList();
+      }
+    } else if (playersRaw is List) {
+      // no embed → [{"rel":"user","id":"..."}, ...]
       for (final p in playersRaw) {
         if (p['rel'] == 'guest') {
           players.add(Player.guest(p['name'] as String? ?? 'Guest'));
         } else if (p['rel'] == 'user') {
           players.add(Player(id: p['id'] as String, name: p['id'] as String));
         }
-      }
-    } else if (playersRaw is Map) {
-      final embedded = playersRaw['data'] as List<dynamic>?;
-      if (embedded != null) {
-        players = embedded.map((p) {
-          if (p['rel'] == 'guest') {
-            return Player.guest(p['name'] as String? ?? 'Guest');
-          }
-          return Player.fromJson(p as Map<String, dynamic>);
-        }).toList();
       }
     }
 

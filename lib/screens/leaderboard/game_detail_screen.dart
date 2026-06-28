@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/game.dart';
 import '../../models/category.dart';
+import '../../providers/favorites_provider.dart';
 import '../../services/speedrun_api.dart';
 import '../../widgets/shared_widgets.dart';
 import 'category_leaderboard_screen.dart';
@@ -141,16 +143,25 @@ class _GameDetailScreenState extends State<GameDetailScreen>
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
-          SliverAppBar(
-            expandedHeight: game.coverUrl != null ? 220 : 120,
+        SliverAppBar(
+            expandedHeight: game.coverUrl != null ? 240 : 120,
             pinned: true,
+            foregroundColor: Colors.white,
+            backgroundColor: theme.colorScheme.primary,
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsetsDirectional.fromSTEB(56, 0, 80, 16),
               title: Text(
                 game.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                  fontSize: 15,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(blurRadius: 12, color: Colors.black),
+                    Shadow(blurRadius: 4, color: Colors.black54),
+                  ],
                 ),
               ),
               background: game.coverUrl != null
@@ -160,26 +171,53 @@ class _GameDetailScreenState extends State<GameDetailScreen>
                         CachedNetworkImage(
                           imageUrl: game.coverUrl!,
                           fit: BoxFit.cover,
-                          color: Colors.black.withOpacity(0.4),
-                          colorBlendMode: BlendMode.darken,
+                        ),
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black54,
+                              ],
+                              stops: [0.4, 1.0],
+                            ),
+                          ),
                         ),
                       ],
                     )
-                  : Container(
-                      color: theme.colorScheme.primaryContainer,
+                  : ColoredBox(
+                      color: theme.colorScheme.primary,
                       child: Center(
                         child: Icon(
                           Icons.videogame_asset_rounded,
                           size: 64,
-                          color: theme.colorScheme.onPrimaryContainer,
+                          color: Colors.white.withOpacity(0.6),
                         ),
                       ),
                     ),
             ),
             actions: [
+              Consumer<FavoritesProvider>(
+                builder: (_, favs, __) => IconButton(
+                  icon: Icon(
+                    favs.isFavorite(game.id)
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: favs.isFavorite(game.id)
+                        ? Colors.redAccent
+                        : Colors.white,
+                  ),
+                  tooltip: favs.isFavorite(game.id)
+                      ? 'Remove from favorites'
+                      : 'Add to favorites',
+                  onPressed: () => favs.toggleFavorite(game),
+                ),
+              ),
               if (game.weblink != null)
                 IconButton(
-                  icon: const Icon(Icons.open_in_browser_rounded),
+                  icon: const Icon(Icons.open_in_browser_rounded, color: Colors.white),
                   tooltip: l.t('open_link'),
                   onPressed: () async {
                     final uri = Uri.parse(game.weblink!);

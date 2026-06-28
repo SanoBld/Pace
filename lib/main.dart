@@ -4,14 +4,18 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/settings_provider.dart';
+import 'providers/favorites_provider.dart';
 import 'screens/main_scaffold.dart';
 import 'widgets/update_dialog.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+      ],
       child: const PaceApp(),
     ),
   );
@@ -57,7 +61,6 @@ class _AppRootState extends State<_AppRoot> {
   @override
   void initState() {
     super.initState();
-    // Check for update after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateDialog.showIfNeeded(context);
     });
