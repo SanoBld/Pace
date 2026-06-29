@@ -6,7 +6,9 @@ import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/settings_provider.dart';
 import 'providers/favorites_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/main_scaffold.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'widgets/update_dialog.dart';
 
 void main() {
@@ -16,6 +18,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: const PaceApp(),
     ),
@@ -68,10 +71,23 @@ class _AppRootState extends State<_AppRoot> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateDialog.showIfNeeded(context);
+      // Only check for updates if already onboarded
+      final auth = context.read<AuthProvider>();
+      if (auth.hasOnboarded) {
+        UpdateDialog.showIfNeeded(context);
+      }
     });
   }
 
   @override
-  Widget build(BuildContext context) => const MainScaffold();
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    // Show onboarding on first launch (while auth is loading, show nothing)
+    if (!auth.hasOnboarded) {
+      return const OnboardingScreen();
+    }
+
+    return const MainScaffold();
+  }
 }

@@ -1,59 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/player.dart';
 import '../../models/variable.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/speedrun_api.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../core/utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Player? initialUser;
-
   const ProfileScreen({super.key, this.initialUser});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  final _api = SpeedrunApiService();
-  final _controller = TextEditingController();
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
+  late final SpeedrunApiService _api;
+  final _searchController = TextEditingController();
+  late TabController _tabController;
 
   Player? _user;
   List<PersonalBest>? _pbs;
+  List<dynamic>? _myRuns; // authenticated user's submitted runs
   bool _loadingUser = false;
   bool _loadingPbs = false;
+  bool _loadingRuns = false;
   String? _userError;
   String? _pbsError;
 
-  // True = arrived from a player tap (no search bar needed)
   bool get _isDirectProfile => widget.initialUser != null;
+  bool get _isOwnProfile {
+    final auth = context.read<AuthProvider>();
+    return !_isDirectProfile && auth.isAuthenticated;
+  }
 
   @override
   void initState() {
     super.initState();
+    final auth = context.read<AuthProvider>();
+    _api = SpeedrunApiService(apiKey: auth.apiKey);
+    _tabController = TabController(
+      length: _isDirectProfile ? 1 : (auth.isAuthenticated ? 2 : 1),
+      vsync: this,
+    );
+
     if (widget.initialUser != null) {
       _user = widget.initialUser;
       _loadFull(widget.initialUser!.id);
+    } else if (auth.isAuthenticated) {
+      _loadAuthenticatedUser();
     }
   }
 
-  Future<void> _search() async {
-    final query = _controller.text.trim();
-    if (query.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _loadingUser = true;
-      _userError = null;
-      _pbs = null;
-      _pbsError = null;
-    });
+  Future<void> _loadAuthenticatedUser() async {
+    setState(() { _loadingUser = true; _userError = null; });
     try {
-      final user = await _api.getUser(query);
+      final user = await _api.getProfile();
       if (mounted) {
         setState(() { _user = user; _loadingUser = false; });
+        context.read<AuthProvider>().setCurrentUser(user);
         _loadPbs(user.id);
       }
     } catch (e) {
@@ -68,6 +78,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() { _user = user; _loadingUser = false; });
         _loadPbs(userId);
+      }
+    } catch (e) {
+      if (mounted) setState(() { _userError = e.toString(); _loadingUser = false; });
+    }
+  }
+
+  Future<void> _search() async {
+    final q = _searchController.text.trim();
+    if (q.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() { _loadingUser = true; _userError = null; _pbs = null; });
+    try {
+      final user = await _api.getUser(q);
+      if (mounted) {
+        setState(() { _user = user; _loadingUser = false; });
+        _loadPbs(user.id);
       }
     } catch (e) {
       if (mounted) setState(() { _userError = e.toString(); _loadingUser = false; });
@@ -94,7 +120,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tabController.dispose();
+    _searchController.dispose();
     _api.dispose();
     super.dispose();
   }
@@ -103,10 +130,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final auth = context.watch<AuthProvider>();
+    final showTabs = !_isDirectProfile && auth.isAuthenticated;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: NestedScrollView(
+        headerSliverBuilder: (_, __) => [
           SliverAppBar(
             pinned: true,
             title: Text(
@@ -115,17 +144,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : l.t('profile_title'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            // Loading indicator in AppBar when fetching profile
-            bottom: _loadingUser
-                ? const PreferredSize(
-                    preferredSize: Size.fromHeight(2),
-                    child: LinearProgressIndicator(),
+            bottom: showTabs
+                ? TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(icon: Icon(Icons.person_rounded), text: 'Profile'),
+                      Tab(icon: Icon(Icons.videogame_asset_rounded), text: 'My Runs'),
+                    ],
                   )
-                : null,
+                : (_loadingUser
+                    ? const PreferredSize(
+                        preferredSize: Size.fromHeight(2),
+                        child: LinearProgressIndicator(),
+                      )
+                    : null),
           ),
 
-          // Search bar — only on the standalone Profile tab
-          if (!_isDirectProfile)
+          // Search bar — only on standalone Profile tab (not direct or auth)
+          if (!_isDirectProfile && !auth.isAuthenticated)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -133,13 +169,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _controller,
+                        controller: _searchController,
                         decoration: InputDecoration(
                           hintText: l.t('profile_hint'),
                           prefixIcon: const Icon(Icons.person_search_rounded),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                              borderRadius: BorderRadius.circular(14)),
                           filled: true,
                         ),
                         textInputAction: TextInputAction.search,
@@ -156,71 +191,312 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-          if (_userError != null)
-            SliverToBoxAdapter(child: ErrorView(message: _userError)),
-
-          if (_user != null) ...[
+          // Search bar for direct profile — allow searching other users
+          if (_isDirectProfile)
             SliverToBoxAdapter(
-              child: _UserHeader(user: _user!, l: l, onOpenUrl: _openUrl),
-            ),
-            const SliverToBoxAdapter(child: Divider()),
-            SliverToBoxAdapter(child: SectionHeader(title: l.t('profile_pbs'))),
-
-            if (_loadingPbs)
-              const SliverToBoxAdapter(child: ShimmerList(count: 6))
-            else if (_pbsError != null)
-              SliverToBoxAdapter(
-                child: ErrorView(
-                  message: _pbsError,
-                  onRetry: () => _loadPbs(_user!.id),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search another player…',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          isDense: true,
+                        ),
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _search(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      icon: const Icon(Icons.search_rounded),
+                      onPressed: _search,
+                    ),
+                  ],
                 ),
-              )
-            else if (_pbs == null || _pbs!.isEmpty)
-              SliverToBoxAdapter(
-                child: EmptyView(
-                  message: l.t('profile_no_pbs'),
-                  icon: Icons.emoji_events_rounded,
-                ),
-              )
-            else
-              SliverList.separated(
-                itemCount: _pbs!.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, indent: 72),
-                itemBuilder: (_, i) => _PbTile(pb: _pbs![i], l: l),
-              ),
-          ] else if (!_loadingUser && !_isDirectProfile)
-            SliverToBoxAdapter(
-              child: EmptyView(
-                message: l.t('profile_enter_user'),
-                icon: Icons.person_rounded,
               ),
             ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
+        body: showTabs
+            ? TabBarView(
+                controller: _tabController,
+                children: [
+                  _ProfileTab(
+                    user: _user,
+                    pbs: _pbs,
+                    loadingUser: _loadingUser,
+                    loadingPbs: _loadingPbs,
+                    userError: _userError,
+                    pbsError: _pbsError,
+                    onReloadPbs: () => _user != null ? _loadPbs(_user!.id) : null,
+                    onOpenUrl: _openUrl,
+                    l: l,
+                  ),
+                  _MyRunsTab(api: _api, l: l),
+                ],
+              )
+            : _ProfileTab(
+                user: _user,
+                pbs: _pbs,
+                loadingUser: _loadingUser,
+                loadingPbs: _loadingPbs,
+                userError: _userError,
+                pbsError: _pbsError,
+                onReloadPbs: () => _user != null ? _loadPbs(_user!.id) : null,
+                onOpenUrl: _openUrl,
+                l: l,
+              ),
       ),
     );
   }
 }
 
-class _UserHeader extends StatelessWidget {
-  final Player user;
-  final dynamic l;
-  final Future<void> Function(String) onOpenUrl;
+// ── Profile tab ───────────────────────────────────────────────────────────────
 
-  const _UserHeader({
+class _ProfileTab extends StatelessWidget {
+  final Player? user;
+  final List<PersonalBest>? pbs;
+  final bool loadingUser;
+  final bool loadingPbs;
+  final String? userError;
+  final String? pbsError;
+  final VoidCallback? onReloadPbs;
+  final Future<void> Function(String) onOpenUrl;
+  final dynamic l;
+
+  const _ProfileTab({
     required this.user,
-    required this.l,
+    required this.pbs,
+    required this.loadingUser,
+    required this.loadingPbs,
+    required this.userError,
+    required this.pbsError,
+    required this.onReloadPbs,
     required this.onOpenUrl,
+    required this.l,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    if (userError != null) return ErrorView(message: userError);
+
+    return CustomScrollView(
+      slivers: [
+        if (user != null) ...[
+          SliverToBoxAdapter(
+            child: _UserHeader(user: user!, onOpenUrl: onOpenUrl, l: l),
+          ),
+          const SliverToBoxAdapter(child: Divider()),
+          SliverToBoxAdapter(
+            child: SectionHeader(title: l.t('profile_pbs')),
+          ),
+          if (loadingPbs)
+            const SliverToBoxAdapter(child: ShimmerList(count: 6))
+          else if (pbsError != null)
+            SliverToBoxAdapter(
+              child: ErrorView(message: pbsError, onRetry: onReloadPbs),
+            )
+          else if (pbs == null || pbs!.isEmpty)
+            SliverToBoxAdapter(
+              child: EmptyView(
+                message: l.t('profile_no_pbs'),
+                icon: Icons.emoji_events_rounded,
+              ),
+            )
+          else
+            SliverList.separated(
+              itemCount: pbs!.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, indent: 72),
+              itemBuilder: (_, i) => _PbTile(pb: pbs![i]),
+            ),
+        ] else if (!loadingUser)
+          SliverToBoxAdapter(
+            child: EmptyView(
+              message: l.t('profile_enter_user'),
+              icon: Icons.person_rounded,
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+}
+
+// ── My Runs tab (authenticated) ───────────────────────────────────────────────
+
+class _MyRunsTab extends StatefulWidget {
+  final SpeedrunApiService api;
+  final dynamic l;
+  const _MyRunsTab({required this.api, required this.l});
+
+  @override
+  State<_MyRunsTab> createState() => _MyRunsTabState();
+}
+
+class _MyRunsTabState extends State<_MyRunsTab> {
+  List<dynamic>? _runs;
+  bool _loading = true;
+  String? _error;
+  String _statusFilter = 'verified';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final runs = await widget.api.getMyRuns(
+        status: _statusFilter == 'all' ? null : _statusFilter,
+        max: 50,
+      );
+      if (mounted) setState(() => _runs = runs);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                for (final s in ['verified', 'new', 'rejected', 'all'])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(s == 'new' ? 'pending' : s),
+                      selected: _statusFilter == s,
+                      onSelected: (_) {
+                        setState(() => _statusFilter = s);
+                        _load();
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (_error != null)
+          SliverToBoxAdapter(child: ErrorView(message: _error, onRetry: _load))
+        else if (_loading)
+          const SliverToBoxAdapter(child: ShimmerList(count: 8))
+        else if (_runs == null || _runs!.isEmpty)
+          SliverToBoxAdapter(
+            child: EmptyView(
+              message: 'No ${_statusFilter == 'new' ? 'pending' : _statusFilter} runs',
+              icon: Icons.sports_score_rounded,
+            ),
+          )
+        else
+          SliverList.separated(
+            itemCount: _runs!.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, indent: 16, endIndent: 16),
+            itemBuilder: (_, i) => _RunRow(run: _runs![i]),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+}
+
+class _RunRow extends StatelessWidget {
+  final dynamic run;
+  const _RunRow({required this.run});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = run.status ?? 'unknown';
+    final statusColor = switch (status) {
+      'verified' => Colors.green,
+      'rejected' => theme.colorScheme.error,
+      _ => theme.colorScheme.tertiary,
+    };
+
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: statusColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          switch (status) {
+            'verified' => Icons.check_circle_rounded,
+            'rejected' => Icons.cancel_rounded,
+            _ => Icons.schedule_rounded,
+          },
+          color: statusColor,
+          size: 20,
+        ),
+      ),
+      title: Text(
+        run.gameName ?? run.gameId ?? '—',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        '${run.categoryName ?? '—'} • ${AppUtils.formatDate(run.date)}',
+        style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          AppUtils.formatTime(run.primaryTime),
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared widgets ────────────────────────────────────────────────────────────
+
+class _UserHeader extends StatelessWidget {
+  final Player user;
+  final Future<void> Function(String) onOpenUrl;
+  final dynamic l;
+
+  const _UserHeader(
+      {required this.user, required this.onOpenUrl, required this.l});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -246,33 +522,25 @@ class _UserHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  user.name,
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
+                Text(user.name,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold)),
                 if (user.pronouns != null && user.pronouns!.isNotEmpty)
-                  Text(
-                    user.pronouns!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  ),
+                  Text(user.pronouns!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
                 if (user.country != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.flag_rounded,
-                            size: 14,
-                            color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 4),
-                        Text(
-                          user.country!.toUpperCase(),
+                    child: Row(children: [
+                      Icon(Icons.flag_rounded,
+                          size: 14,
+                          color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(user.country!.toUpperCase(),
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ]),
                   ),
                 if (user.signupDate != null)
                   Padding(
@@ -323,9 +591,7 @@ class _SocialChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-
-  const _SocialChip(
-      {required this.label, required this.icon, required this.onTap});
+  const _SocialChip({required this.label, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) => ActionChip(
@@ -338,9 +604,7 @@ class _SocialChip extends StatelessWidget {
 
 class _PbTile extends StatelessWidget {
   final PersonalBest pb;
-  final dynamic l;
-
-  const _PbTile({required this.pb, required this.l});
+  const _PbTile({required this.pb});
 
   @override
   Widget build(BuildContext context) {
@@ -364,14 +628,12 @@ class _PbTile extends StatelessWidget {
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      '#${pb.place}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('#${pb.place}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center),
                   ),
           ),
           const SizedBox(width: 12),
@@ -379,34 +641,27 @@ class _PbTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  pb.gameName ?? '—',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  pb.categoryName ?? '—',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.primary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(pb.gameName ?? '—',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(pb.categoryName ?? '—',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.primary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
                 if (pb.date != null)
-                  Text(
-                    AppUtils.formatDate(pb.date),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
+                  Text(AppUtils.formatDate(pb.date),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      )),
               ],
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: isTop3
                   ? Color(AppUtils.rankColor(pb.place)).withOpacity(0.15)
@@ -414,8 +669,7 @@ class _PbTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: isTop3
                   ? Border.all(
-                      color: Color(AppUtils.rankColor(pb.place))
-                          .withOpacity(0.5))
+                      color: Color(AppUtils.rankColor(pb.place)).withOpacity(0.5))
                   : null,
             ),
             child: Text(
