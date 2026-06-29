@@ -5,8 +5,10 @@ import '../../models/category.dart';
 import '../../models/game.dart';
 import '../../models/leaderboard.dart';
 import '../../models/variable.dart';
+import '../../models/run.dart';
 import '../../services/speedrun_api.dart';
 import '../../widgets/leaderboard_entry_tile.dart';
+import '../../widgets/wr_progression_chart.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../core/utils.dart';
 import '../profile/profile_screen.dart';
@@ -31,30 +33,44 @@ class CategoryLeaderboardScreen extends StatefulWidget {
 }
 
 class _CategoryLeaderboardScreenState
-    extends State<CategoryLeaderboardScreen> {
+    extends State<CategoryLeaderboardScreen>
+    with SingleTickerProviderStateMixin {
   final _api = SpeedrunApiService();
+  late TabController _tabController;
 
+  // Leaderboard state
   Leaderboard? _leaderboard;
   List<Variable> _variables = [];
   final Map<String, String> _selectedVars = {};
-  bool _loading = true;
-  String? _error;
-  int? _maxPlace; // null = all
+  bool _loadingLb = true;
+  String? _lbError;
+  int? _maxPlace;
+
+  // Chart state
+  List<WrPoint>? _wrPoints;
+  bool _loadingChart = false;
+  String? _chartError;
 
   static const _topFilters = [10, 25, 50, 100];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && _wrPoints == null && !_loadingChart) {
+        _loadChart();
+      }
+    });
     _loadVariables();
   }
 
   Future<void> _loadVariables() async {
     try {
       final vars = await _api.getCategoryVariables(widget.category.id);
-      final subcategoryVars = vars.where((v) => v.isSubcategory).toList();
-      setState(() => _variables = subcategoryVars);
-      for (final v in subcategoryVars) {
+      final sub = vars.where((v) => v.isSubcategory).toList();
+      setState(() => _variables = sub);
+      for (final v in sub) {
         if (v.defaultValue != null) {
           _selectedVars[v.id] = v.defaultValue!;
         } else if (v.values.isNotEmpty) {
@@ -66,7 +82,7 @@ class _CategoryLeaderboardScreenState
   }
 
   Future<void> _loadLeaderboard() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loadingLb = true; _lbError = null; });
     try {
       Leaderboard lb;
       if (widget.levelId != null) {
@@ -78,17 +94,50 @@ class _CategoryLeaderboardScreenState
           widget.category.id,
           variables: _selectedVars.isNotEmpty ? _selectedVars : null,
         );
-        // Fallback: retry without variables if 0 runs
         if (lb.runs.isEmpty && _selectedVars.isNotEmpty) {
           lb = await _api.getLeaderboard(widget.game.id, widget.category.id);
         }
       }
       if (mounted) setState(() => _leaderboard = lb);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _lbError = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _loadingLb = false);
     }
+  }
+
+  Future<void> _loadChart() async {
+    setState(() { _loadingChart = true; _chartError = null; });
+    try {
+      final runs = await _api.getCategoryRunHistory(
+          widget.game.id, widget.category.id);
+      final points = _computeWrProgression(runs);
+      if (mounted) setState(() => _wrPoints = points);
+    } catch (e) {
+      if (mounted) setState(() => _chartError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingChart = false);
+    }
+  }
+
+  List<WrPoint> _computeWrProgression(List<Run> runs) {
+    double? best;
+    final points = <WrPoint>[];
+    for (final run in runs) {
+      if (run.primaryTime == null || run.date == null) continue;
+      if (best == null || run.primaryTime! < best) {
+        best = run.primaryTime!;
+        final name = run.players.isNotEmpty ? run.players.first.name : '?';
+        try {
+          points.add(WrPoint(
+            date: DateTime.parse(run.date!),
+            time: best,
+            playerName: name,
+          ));
+        } catch (_) {}
+      }
+    }
+    return points;
   }
 
   List<LeaderboardEntry> get _filteredRuns {
@@ -98,9 +147,11 @@ class _CategoryLeaderboardScreenState
     return all.where((e) => e.place <= _maxPlace!).toList();
   }
 
-  void _onVarChanged(String varId, String valueId) {
-    setState(() => _selectedVars[varId] = valueId);
-    _loadLeaderboard();
+  void _openPlayer(LeaderboardEntry entry) {
+    if (entry.run.players.isEmpty) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(initialUser: entry.run.players.first),
+    ));
   }
 
   Future<void> _openVideo(String url) async {
@@ -110,17 +161,9 @@ class _CategoryLeaderboardScreenState
     }
   }
 
-  void _openPlayer(LeaderboardEntry entry) {
-    if (entry.run.players.isEmpty) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (_) => ProfileScreen(initialUser: entry.run.players.first)),
-    );
-  }
-
   @override
   void dispose() {
+    _tabController.dispose();
     _api.dispose();
     super.dispose();
   }
@@ -136,179 +179,204 @@ class _CategoryLeaderboardScreenState
         : widget.category.name;
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadLeaderboard,
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(widget.game.name,
-                      style: TextStyle(
-                          fontSize: 12, color: theme.colorScheme.primary)),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: _loadLeaderboard,
-                ),
+      body: NestedScrollView(
+        headerSliverBuilder: (_, __) => [
+          SliverAppBar(
+            pinned: true,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(widget.game.name,
+                    style: TextStyle(
+                        fontSize: 12, color: theme.colorScheme.primary)),
               ],
             ),
-
-            // Subcategory filters
-            if (_variables.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _variables.map((v) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(v.name,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 6),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: v.values.values.map((val) {
-                                final selected = _selectedVars[v.id] == val.id;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: FilterChip(
-                                    label: Text(val.label),
-                                    selected: selected,
-                                    onSelected: (_) =>
-                                        _onVarChanged(v.id, val.id),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loadLeaderboard,
               ),
-
-            // Top N filter
-            if (_leaderboard != null && _leaderboard!.runs.isNotEmpty)
-              SliverToBoxAdapter(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: const Text('All'),
-                          selected: _maxPlace == null,
-                          onSelected: (_) =>
-                              setState(() => _maxPlace = null),
-                        ),
-                      ),
-                      ..._topFilters
-                          .where((n) => n < _leaderboard!.runs.length)
-                          .map((n) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: FilterChip(
-                                  label: Text('Top $n'),
-                                  selected: _maxPlace == n,
-                                  onSelected: (_) =>
-                                      setState(() => _maxPlace = n),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(icon: Icon(Icons.leaderboard_rounded), text: 'Leaderboard'),
+                Tab(icon: Icon(Icons.show_chart_rounded), text: 'WR History'),
+              ],
+            ),
+          ),
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            // ── Tab 1: Leaderboard ───────────────────────────────────
+            RefreshIndicator(
+              onRefresh: _loadLeaderboard,
+              child: CustomScrollView(
+                slivers: [
+                  // Subcategory filters
+                  if (_variables.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _variables.map((v) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(v.name,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant)),
+                              const SizedBox(height: 6),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: v.values.values.map((val) => Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      label: Text(val.label),
+                                      selected: _selectedVars[v.id] == val.id,
+                                      onSelected: (_) {
+                                        setState(() => _selectedVars[v.id] = val.id);
+                                        _loadLeaderboard();
+                                      },
+                                    ),
+                                  )).toList(),
                                 ),
-                              )),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Summary
-            if (_leaderboard != null && !_loading)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.leaderboard_rounded,
-                          size: 14, color: theme.colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${filtered.length} runs'
-                        '${_maxPlace != null ? ' (top $_maxPlace)' : ''}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      if (_leaderboard!.runs.isNotEmpty) ...[
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '🥇 ${AppUtils.formatTime(_leaderboard!.runs.first.run.primaryTime)}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          )).toList(),
                         ),
-                      ],
-                    ],
-                  ),
-                ),
+                      ),
+                    ),
+
+                  // Top N filter
+                  if (_leaderboard != null && _leaderboard!.runs.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                        child: Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: const Text('All'),
+                                selected: _maxPlace == null,
+                                onSelected: (_) => setState(() => _maxPlace = null),
+                              ),
+                            ),
+                            ..._topFilters
+                                .where((n) => n < _leaderboard!.runs.length)
+                                .map((n) => Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: FilterChip(
+                                        label: Text('Top $n'),
+                                        selected: _maxPlace == n,
+                                        onSelected: (_) =>
+                                            setState(() => _maxPlace = n),
+                                      ),
+                                    )),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Summary
+                  if (_leaderboard != null && !_loadingLb)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.leaderboard_rounded,
+                                size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${filtered.length} runs'
+                              '${_maxPlace != null ? ' (top $_maxPlace)' : ''}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            if (_leaderboard!.runs.isNotEmpty) ...[
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '🥇 ${AppUtils.formatTime(_leaderboard!.runs.first.run.primaryTime)}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  const SliverToBoxAdapter(child: Divider(height: 1)),
+
+                  if (_lbError != null)
+                    SliverToBoxAdapter(
+                      child: ErrorView(message: _lbError, onRetry: _loadLeaderboard),
+                    )
+                  else if (_loadingLb)
+                    const SliverToBoxAdapter(child: ShimmerList(count: 10))
+                  else if (filtered.isEmpty)
+                    SliverToBoxAdapter(
+                      child: EmptyView(
+                        message: l.t('lb_no_runs'),
+                        icon: Icons.sports_score_rounded,
+                      ),
+                    )
+                  else
+                    SliverList.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, indent: 16, endIndent: 16),
+                      itemBuilder: (_, i) {
+                        final entry = filtered[i];
+                        return LeaderboardEntryTile(
+                          entry: entry,
+                          onTap: () => _openPlayer(entry),
+                          onVideoTap: entry.run.videoUrl != null
+                              ? () => _openVideo(entry.run.videoUrl!)
+                              : null,
+                        );
+                      },
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                ],
               ),
+            ),
 
-            const SliverToBoxAdapter(child: Divider(height: 1)),
-
-            // Content
-            if (_error != null)
-              SliverToBoxAdapter(
-                child: ErrorView(message: _error, onRetry: _loadLeaderboard),
-              )
-            else if (_loading)
-              const SliverToBoxAdapter(child: ShimmerList(count: 10))
-            else if (filtered.isEmpty)
-              SliverToBoxAdapter(
-                child: EmptyView(
-                  message: _leaderboard!.runs.isEmpty
-                      ? l.t('lb_no_runs')
-                      : 'No runs match this filter',
-                  icon: Icons.sports_score_rounded,
-                ),
-              )
-            else
-              SliverList.separated(
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                itemBuilder: (_, i) {
-                  final entry = filtered[i];
-                  return LeaderboardEntryTile(
-                    entry: entry,
-                    onTap: () => _openPlayer(entry),
-                    onVideoTap: entry.run.videoUrl != null
-                        ? () => _openVideo(entry.run.videoUrl!)
-                        : null,
-                  );
-                },
-              ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            // ── Tab 2: WR History chart ──────────────────────────────
+            Builder(builder: (_) {
+              if (_loadingChart) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (_chartError != null) {
+                return ErrorView(message: _chartError, onRetry: _loadChart);
+              }
+              if (_wrPoints == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return SingleChildScrollView(
+                child: WrProgressionChart(points: _wrPoints!),
+              );
+            }),
           ],
         ),
       ),

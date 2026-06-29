@@ -95,6 +95,25 @@ class SpeedrunApiService {
     return games;
   }
 
+  /// All verified runs for a category sorted by date — used for WR progression chart
+  Future<List<Run>> getCategoryRunHistory(
+    String gameId,
+    String categoryId, {
+    int max = 200,
+  }) async {
+    final data = await _get('/runs', params: {
+      'game': gameId,
+      'category': categoryId,
+      'status': 'verified',
+      'orderby': 'date',
+      'direction': 'asc',
+      'max': max.toString(),
+      'embed': 'players',
+    });
+    final list = data['data'] as List<dynamic>;
+    return list.map((e) => Run.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// Fetch a single game by ID or abbreviation
   Future<Game> getGame(String idOrAbbr) async {
     final data = await _get('/games/$idOrAbbr');

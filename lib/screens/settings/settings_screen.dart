@@ -59,8 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
+          SliverAppBar.large(
             title: Text(
               l.t('settings_title'),
               style: const TextStyle(fontWeight: FontWeight.bold),
@@ -110,12 +109,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                   selected: {settings.themeMode},
-                  onSelectionChanged: (s) =>
-                      settings.setThemeMode(s.first),
+                  onSelectionChanged: (s) => settings.setThemeMode(s.first),
                   style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+              ),
+
+              // Material You toggle
+              SwitchListTile(
+                secondary: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.colorize_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSecondaryContainer),
+                ),
+                title: const Text('Material You'),
+                subtitle: Text(
+                  'Use wallpaper colors',
+                  style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 12),
+                ),
+                value: settings.useDynamicColor,
+                onChanged: settings.setUseDynamicColor,
               ),
 
               const Divider(height: 24),

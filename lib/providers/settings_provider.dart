@@ -4,9 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   Locale _locale = const Locale('en');
+  bool _useDynamicColor = false;
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
+  bool get useDynamicColor => _useDynamicColor;
 
   SettingsProvider() {
     _load();
@@ -16,6 +18,7 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final theme = prefs.getString('theme_mode') ?? 'system';
     final lang = prefs.getString('locale') ?? 'en';
+    final dynamic = prefs.getBool('use_dynamic_color') ?? false;
 
     _themeMode = switch (theme) {
       'light' => ThemeMode.light,
@@ -23,6 +26,7 @@ class SettingsProvider extends ChangeNotifier {
       _ => ThemeMode.system,
     };
     _locale = Locale(lang);
+    _useDynamicColor = dynamic;
     notifyListeners();
   }
 
@@ -32,11 +36,11 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'theme_mode',
-      mode == ThemeMode.light
-          ? 'light'
-          : mode == ThemeMode.dark
-              ? 'dark'
-              : 'system',
+      switch (mode) {
+        ThemeMode.light => 'light',
+        ThemeMode.dark => 'dark',
+        _ => 'system',
+      },
     );
   }
 
@@ -45,5 +49,12 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('locale', locale.languageCode);
+  }
+
+  Future<void> setUseDynamicColor(bool value) async {
+    _useDynamicColor = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_dynamic_color', value);
   }
 }

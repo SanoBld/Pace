@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -28,24 +29,29 @@ class PaceApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
 
-    return MaterialApp(
-      title: 'Pace',
-      debugShowCheckedModeBanner: false,
-      themeMode: settings.themeMode,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      locale: settings.locale,
-      supportedLocales: const [
-        Locale('en'),
-        Locale('fr'),
-      ],
-      localizationsDelegates: const [
-        AppLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: const _AppRoot(),
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        final useDynamic = settings.useDynamicColor;
+        return MaterialApp(
+          title: 'Pace',
+          debugShowCheckedModeBanner: false,
+          themeMode: settings.themeMode,
+          theme: AppTheme.light(useDynamic ? lightDynamic : null),
+          darkTheme: AppTheme.dark(useDynamic ? darkDynamic : null),
+          locale: settings.locale,
+          supportedLocales: const [
+            Locale('en'),
+            Locale('fr'),
+          ],
+          localizationsDelegates: const [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const _AppRoot(),
+        );
+      },
     );
   }
 }
