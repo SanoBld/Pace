@@ -7,6 +7,7 @@ import '../models/run.dart';
 import '../models/player.dart';
 import '../models/leaderboard.dart';
 import '../models/variable.dart';
+import '../models/notification.dart';
 
 class SpeedrunApiException implements Exception {
   final String message;
@@ -29,8 +30,7 @@ class SpeedrunApiService {
   Map<String, String> get _headers => {
         'User-Agent': AppConstants.userAgent,
         'Accept': 'application/json',
-        if (_apiKey != null && _apiKey!.isNotEmpty)
-          'X-API-Key': _apiKey!,
+        if (_apiKey != null && _apiKey!.isNotEmpty) 'X-API-Key': _apiKey!,
       };
 
   Future<Map<String, dynamic>> _get(String path,
@@ -55,8 +55,8 @@ class SpeedrunApiService {
         statusCode: response.statusCode);
   }
 
-  Future<Map<String, dynamic>> _put(String path,
-      Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _put(
+      String path, Map<String, dynamic> body) async {
     final uri = Uri.parse('${AppConstants.apiBase}$path');
     final response = await _client.put(
       uri,
@@ -132,6 +132,20 @@ class SpeedrunApiService {
     });
     final list = data['data'] as List<dynamic>;
     return list.map((e) => Run.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Get the authenticated user's notifications (likes, comments, verifications…)
+  /// Synced directly from your speedrun.com account.
+  Future<List<AppNotification>> getNotifications({int max = 20}) async {
+    final data = await _get('/notifications', params: {
+      'max': max.toString(),
+      'orderby': 'created',
+      'direction': 'desc',
+    });
+    final list = data['data'] as List<dynamic>;
+    return list
+        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ── GAMES ──────────────────────────────────────────────────────────────────

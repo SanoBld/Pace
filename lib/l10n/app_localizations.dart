@@ -89,6 +89,60 @@ class AppLocalizations {
       'time_ago': 'ago',
       'world_record': 'World Record',
       'no_video': 'No video',
+      // Onboarding
+      'onboard_welcome_title': 'Welcome to Pace',
+      'onboard_welcome_desc':
+          'Your speedrun companion.\nBrowse leaderboards, follow runners and track world records — all powered by speedrun.com.',
+      'onboard_get_started': 'Get Started',
+      'onboard_features_title': 'Everything you need',
+      'onboard_next': 'Next',
+      'onboard_connect_title': 'Connect your account',
+      'onboard_connect_optional': 'Optional — you can skip this',
+      'onboard_connect_benefits': 'With your API key you get:',
+      'onboard_warning':
+          'Never share your API key. It gives full access to your speedrun.com account.',
+      'onboard_api_key_label': 'API Key',
+      'onboard_api_key_hint': 'Paste your speedrun.com API key',
+      'onboard_get_key': 'Get your key at speedrun.com/settings/api',
+      'onboard_connect_continue': 'Connect & Continue',
+      'onboard_skip': 'Skip — use without account',
+      // Account / API key
+      'account_title': 'Account',
+      'account_key_connected': 'API Key connected',
+      'account_key_none': 'No API Key',
+      'account_key_desc': 'Connect to unlock personal stats & mod tools',
+      'account_key_change': 'Change',
+      'account_key_add': 'Add',
+      'account_key_remove': 'Remove',
+      'account_key_save': 'Save',
+      'account_key_cancel': 'Cancel',
+      'account_authenticated':
+          'Authenticated — personal profile, mod tools and run management unlocked.',
+      // Notifications
+      'notifications_title': 'Notifications',
+      'notifications_empty': 'No notifications',
+      // My runs
+      'my_runs_title': 'My Runs',
+      'my_runs_empty': 'No runs found',
+      'my_runs_pending': 'pending',
+      'my_runs_verified': 'verified',
+      'my_runs_rejected': 'rejected',
+      'my_runs_all': 'all',
+      // WR chart
+      'wr_chart_title': 'WR Progression',
+      'wr_chart_empty': 'No WR history available',
+      'wr_chart_history': 'Record history',
+      'wr_chart_tab': 'WR History',
+      'leaderboard_tab': 'Leaderboard',
+      // Material You
+      'settings_material_you': 'Material You',
+      'settings_material_you_desc': 'Use wallpaper colors',
+      // Games tab (renamed from Leaderboards)
+      'games_title': 'Games',
+      'games_active': 'Active',
+      'games_az': 'A → Z',
+      'games_newest': 'Newest',
+      'top_filter_all': 'All',
     },
     'fr': {
       // Nav
@@ -170,6 +224,61 @@ class AppLocalizations {
       'time_ago': 'il y a',
       'world_record': 'Record du monde',
       'no_video': 'Pas de vidéo',
+      // Onboarding
+      'onboard_welcome_title': 'Bienvenue sur Pace',
+      'onboard_welcome_desc':
+          'Votre compagnon de speedrun.\nParcourez les classements, suivez les coureurs et suivez les records du monde — propulsé par speedrun.com.',
+      'onboard_get_started': 'Commencer',
+      'onboard_features_title': 'Tout ce dont vous avez besoin',
+      'onboard_next': 'Suivant',
+      'onboard_connect_title': 'Connectez votre compte',
+      'onboard_connect_optional': 'Optionnel — vous pouvez passer cette étape',
+      'onboard_connect_benefits': 'Avec votre clé API, vous obtenez :',
+      'onboard_warning':
+          'Ne partagez jamais votre clé API. Elle donne un accès complet à votre compte speedrun.com.',
+      'onboard_api_key_label': 'Clé API',
+      'onboard_api_key_hint': 'Collez votre clé API speedrun.com',
+      'onboard_get_key': 'Obtenez votre clé sur speedrun.com/settings/api',
+      'onboard_connect_continue': 'Connecter et continuer',
+      'onboard_skip': 'Passer — utiliser sans compte',
+      // Account / API key
+      'account_title': 'Compte',
+      'account_key_connected': 'Clé API connectée',
+      'account_key_none': 'Aucune clé API',
+      'account_key_desc':
+          'Connectez-vous pour débloquer vos stats perso et les outils de modération',
+      'account_key_change': 'Modifier',
+      'account_key_add': 'Ajouter',
+      'account_key_remove': 'Supprimer',
+      'account_key_save': 'Enregistrer',
+      'account_key_cancel': 'Annuler',
+      'account_authenticated':
+          'Authentifié — profil personnel, outils de modération et gestion des runs débloqués.',
+      // Notifications
+      'notifications_title': 'Notifications',
+      'notifications_empty': 'Aucune notification',
+      // My runs
+      'my_runs_title': 'Mes runs',
+      'my_runs_empty': 'Aucun run trouvé',
+      'my_runs_pending': 'en attente',
+      'my_runs_verified': 'vérifié',
+      'my_runs_rejected': 'rejeté',
+      'my_runs_all': 'tous',
+      // WR chart
+      'wr_chart_title': 'Progression du WR',
+      'wr_chart_empty': 'Aucun historique de WR disponible',
+      'wr_chart_history': 'Historique des records',
+      'wr_chart_tab': 'Historique WR',
+      'leaderboard_tab': 'Classement',
+      // Material You
+      'settings_material_you': 'Material You',
+      'settings_material_you_desc': "Utiliser les couleurs du fond d'écran",
+      // Games tab
+      'games_title': 'Jeux',
+      'games_active': 'Actifs',
+      'games_az': 'A → Z',
+      'games_newest': 'Récents',
+      'top_filter_all': 'Tous',
     },
   };
 
