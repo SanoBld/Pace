@@ -190,7 +190,7 @@ class _GameDetailScreenState extends State<GameDetailScreen>
                         child: Icon(
                           Icons.videogame_asset_rounded,
                           size: 64,
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                         ),
                       ),
                     ),

@@ -22,7 +22,7 @@ class ErrorView extends StatelessWidget {
             Icon(
               Icons.wifi_off_rounded,
               size: 64,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -70,7 +70,7 @@ class EmptyView extends StatelessWidget {
             Icon(
               icon,
               size: 64,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             if (message != null)
@@ -99,7 +99,7 @@ class ShimmerList extends StatelessWidget {
     final theme = Theme.of(context);
     final baseColor = theme.colorScheme.surfaceContainerHighest;
     final highlightColor = theme.colorScheme.surfaceContainerHighest
-        .withOpacity(0.6);
+        .withValues(alpha: 0.6);
 
     return Shimmer.fromColors(
       baseColor: baseColor,
@@ -166,7 +166,7 @@ class ShimmerGrid extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: theme.colorScheme.surfaceContainerHighest,
       highlightColor:
-          theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),

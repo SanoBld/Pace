@@ -122,7 +122,7 @@ class _WrHistoryTile extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               color: isFirst
-                  ? const Color(0xFFFFD700).withOpacity(0.2)
+                  ? const Color(0xFFFFD700).withValues(alpha: 0.2)
                   : theme.colorScheme.surfaceContainerHighest,
               shape: BoxShape.circle,
               border: isFirst
@@ -221,7 +221,7 @@ class _ChartPainter extends CustomPainter {
 
     // Grid
     final gridPaint = Paint()
-      ..color = outline.withOpacity(0.4)
+      ..color = outline.withValues(alpha: 0.4)
       ..strokeWidth = 1;
 
     for (int i = 0; i <= 4; i++) {
@@ -261,7 +261,7 @@ class _ChartPainter extends CustomPainter {
 
     // Fill under step line
     final fillPaint = Paint()
-      ..color = primary.withOpacity(0.1)
+      ..color = primary.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     final fill = Path();

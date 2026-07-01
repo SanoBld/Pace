@@ -50,7 +50,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
@@ -62,7 +61,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  theme.colorScheme.primary.withOpacity(0.12),
+                  theme.colorScheme.primary.withValues(alpha: 0.12),
                   theme.colorScheme.surface,
                 ],
               ),
@@ -151,7 +150,7 @@ class _WelcomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -366,10 +365,10 @@ class _ApiKeyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.2)),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +415,7 @@ class _ApiKeyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.errorContainer.withOpacity(0.4),
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(

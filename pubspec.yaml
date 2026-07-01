@@ -21,6 +21,7 @@ dependencies:
   intl: 0.20.2
   package_info_plus: ^8.0.0
   dynamic_color: ^1.7.0
+  flutter_local_notifications: ^17.2.0
 
 dev_dependencies:
   flutter_test:
