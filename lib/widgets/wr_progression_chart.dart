@@ -256,7 +256,9 @@ class _ChartPainter extends CustomPainter {
       fill.lineTo(px(points[i].date), py(points[i - 1].time));
       fill.lineTo(px(points[i].date), py(points[i].time));
     }
-    fill.lineTo(size.width, py(points.last.time))..lineTo(size.width, size.height)..close();
+    fill.lineTo(size.width, py(points.last.time));
+    fill.lineTo(size.width, size.height);
+    fill.close();
     canvas.drawPath(fill, Paint()..color = primary.withValues(alpha: 0.1)..style = PaintingStyle.fill);
 
     // Step line

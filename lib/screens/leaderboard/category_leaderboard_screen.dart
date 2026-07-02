@@ -11,7 +11,6 @@ import '../../widgets/leaderboard_entry_tile.dart';
 import '../../widgets/wr_progression_chart.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../core/utils.dart';
-import '../profile/profile_screen.dart';
 import '../../widgets/run_detail_sheet.dart';
 
 class CategoryLeaderboardScreen extends StatefulWidget {
