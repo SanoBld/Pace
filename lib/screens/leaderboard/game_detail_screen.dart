@@ -247,6 +247,12 @@ class _GameDetailScreenState extends State<GameDetailScreen>
                       label: Text(game.abbreviation!),
                       visualDensity: VisualDensity.compact,
                     ),
+                  if (!_loadingCategories && _fullGameCategories != null)
+                    Chip(
+                      avatar: const Icon(Icons.category_rounded, size: 14),
+                      label: Text('${_fullGameCategories!.where((c) => !c.miscellaneous).length} categories'),
+                      visualDensity: VisualDensity.compact,
+                    ),
                 ],
               ),
             ),

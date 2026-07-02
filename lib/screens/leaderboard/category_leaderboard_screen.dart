@@ -12,6 +12,7 @@ import '../../widgets/wr_progression_chart.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../core/utils.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/run_detail_sheet.dart';
 
 class CategoryLeaderboardScreen extends StatefulWidget {
   final Game game;
@@ -145,13 +146,6 @@ class _CategoryLeaderboardScreenState
     final all = _leaderboard!.runs;
     if (_maxPlace == null) return all;
     return all.where((e) => e.place <= _maxPlace!).toList();
-  }
-
-  void _openPlayer(LeaderboardEntry entry) {
-    if (entry.run.players.isEmpty) return;
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => ProfileScreen(initialUser: entry.run.players.first),
-    ));
   }
 
   Future<void> _openVideo(String url) async {
@@ -349,7 +343,7 @@ class _CategoryLeaderboardScreenState
                         final entry = filtered[i];
                         return LeaderboardEntryTile(
                           entry: entry,
-                          onTap: () => _openPlayer(entry),
+                          onTap: () => RunDetailSheet.show(context, entry),
                           onVideoTap: entry.run.videoUrl != null
                               ? () => _openVideo(entry.run.videoUrl!)
                               : null,
